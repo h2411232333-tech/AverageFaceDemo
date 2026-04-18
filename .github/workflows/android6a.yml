@@ -1,0 +1,47 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 降低系统版本，提高老插件的兼容性
+    runs-on: ubuntu-20.04
+    
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Accept Android Licenses
+      # 这是一个关键步骤，手动同意所有协议，防止 Gradle 自动去下载时崩溃
+      run: |
+        yes | sdkmanager --licenses || true
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      # 核心改动：增加 -Pandroid.builder.sdkDownload=false 
+      # 告诉 Gradle：用现成的 SDK，别自己去联网乱找
+      run: ./gradlew assembleDebug -Pandroid.builder.sdkDownload=false
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: my-app-apk
+        # 考虑到是老项目，路径可能在 app/build/outputs/apk/ 下
+        # 使用通配符搜索所有生成的 apk
+        path: "**/build/outputs/apk/**/*.apk"
