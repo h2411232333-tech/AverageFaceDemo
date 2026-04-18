@@ -1,0 +1,40 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch: # 允许你手动点击运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # 这里必须有 env: 关键字，且下面这一行要缩进两个空格
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17' # 现代安卓项目建议用 17，如果报错再改回 11
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle
+      # 使用 assembleDebug 而不是 build，速度更快且不运行繁琐的测试
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK
+      # 这个步骤非常重要！没有这一步，你就拿不到编译好的 APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: my-app-apk
+        path: app/build/outputs/apk/debug/*.apk
